@@ -1,0 +1,31 @@
+{
+  "name": "gym-qwop",
+  "version": "1.0.0",
+  "description": "qwop gym environment",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tommycalvy/gym-qwop.git"
+  },
+  "keywords": [
+    "qwop",
+    "openAI",
+    "gym"
+  ],
+  "author": "Thomas L. Calvy",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tommycalvy/gym-qwop/issues"
+  },
+  "homepage": "https://github.com/tommycalvy/gym-qwop#readme",
+  "devDependencies": {
+    "electron": "^9.0.0"
+  },
+  "dependencies": {
+    "node-ipc": "^9.1.1"
+  }
+}
