@@ -26,6 +26,7 @@
     "electron": "^9.0.0"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^1.7.4",
     "node-ipc": "^9.1.1"
   }
 }
