@@ -1,11 +1,11 @@
-const { app, BrowserWindow } = require('electron').remote
+//const { app } = require('electron').remote
 const ipc = require('node-ipc')
 
-app.commandLine.appendSwitch('ppapi-flash-path', app.getPath('pepperFlashSystemPlugin'))
+//app.commandLine.appendSwitch('ppapi-flash-path', app.getPath('pepperFlashSystemPlugin'))
 
 
-let qwop = new QWOP()
-app.whenReady().then(qwop.create_envs())
+//let qwop = new QWOP()
+//app.whenReady().then(qwop.create_envs())
 
 
 

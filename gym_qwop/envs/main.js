@@ -1,59 +1,46 @@
-const { app, BrowserWindow } = require('electron')
+const { app } = require('electron')
 const path = require('path')
+const ipc = require('node-ipc')
 
 app.commandLine.appendSwitch('ppapi-flash-path', app.getPath('pepperFlashSystemPlugin'))
 
-let remote = null;
-function createRemote () {
-  instance = new BrowserWindow({
-    webPreferences: {
-      nodeIntegration: true,
-      plugins: true,
-      offscreen: true
-    },
-    show: false
-  })
-  remote.loadFile('remote/remote.html')
+const cmdargs = process.argv.slice(2)
+let args = {
+  totalEnvs: parseInt(cmdargs[0], 10),
+  framesInState: parseInt(cmdargs[1], 10),
+  width: parseInt(cmdargs[2], 10),
+  height: parseInt(cmdargs[3], 10),
+  crops: [
+    parseInt(cmdargs[4], 10),
+    parseInt(cmdargs[5], 10),
+    parseInt(cmdargs[6], 10),
+    parseInt(cmdargs[7], 10)
+  ],
+  enableRender: (cmdargs[8] == true)
 }
-app.whenReady().then(createRemote)
+let qwop = new QWOP(args)
+app.whenReady().then(qwop.create_envs())
 
 
-/*
 
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-
-async function get_frames(win) {
-  init_frame_capture(win)
-  for (let i = 0; i < 100; i++) {
-    win.webContents.startPainting()
-    await sleep(5000)
-    win.webContents.stopPainting()
-    await sleep(5000)
-  }
-}
-
-*/
-/*
 ipc.config.id = 'qwop';
 ipc.serve(function() {
     // The path is '/tmp/app.qwop'
-    ipc.server.on('step', function(data, socket) {
-      ipc.log('got a message : '.debug, data);
-      ipc.server.emit(socket, 'step', data+' world!');
+    ipc.server.on('step', function(actions, socket) {
+      ipc.log('step env: '.debug, actions);
+      let returns = qwop.step_all(actions)
+      ipc.server.emit(socket, 'step', returns+' world!');
     });
 
     ipc.server.on('reset', function(data, socket) {
       ipc.log('got a message : '.debug, data);
-      ipc.server.emit(socket, 'step', data+' world!');
+      let obs = qwop.reset()
+      ipc.server.emit(socket, 'step', obs+' world!');
     });
 
     ipc.server.on('render', function(data, socket) {
       ipc.log('got a message : '.debug, data);
+      qwop.render()
       ipc.server.emit(socket, 'step', data+' world!');
     });
 
@@ -64,4 +51,3 @@ ipc.serve(function() {
 });
 
 ipc.server.start();
-*/

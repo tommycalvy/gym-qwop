@@ -1,43 +1,40 @@
-const { BrowserWindow } = require('electron')
+const { BrowserWindow, ipcMain} = require('electron')
 const GameController = require('./game_controller.js')
+const HPReward = require('./reward/hp_reward.js')
 
 module.exports = class FlashGame extends GameController {
 
   constructor(...args) {
-    let actionSet, initFunc, totalEnvs, framesInState;
-    let actionSpace, width, height, flashGame, reward;
-    [
-      actionSet,
-      initFunc,
-      {
-        totalEnvs,
-        framesInState,
-        actionSpace,
-        width,
-        height,
-        flashGame,
-        reward
-      }
-    ] = args;
-    console.log(args)
 
-    if (reward == null) {
-      reward = new HPReward(BrowserWindow)
-    }
+    console.log(args)
 
     class FlashGameEnv {
 
-      constructor(width, height, flashGame, actionSpace, framesInState, reward, totalEnvs, actionSet, initFunc) {
-        this.width = width
-        this.height = height
-        this.flashGame = flashGame
-        this.actionSpace = actionSpace
-        this.framesInState = framesInState
-        this.reward = reward
-        this.totalEnvs = totalEnvs
-        this.actionSet = actionSet
-        this.initFunc = initFunc
-        this.data = {"width": width, "height": height, "flashGame": flashGame}
+      constructor(...args) {
+        [
+          this.totalEnvs,
+          this.framesInState,
+          this.actionSpace,
+          this.width,
+          this.height,
+          this.crops,
+          this.enableRender,
+          this.flashGame,
+          this.reward,
+          this.actionSet,
+          this.initFunc
+        ] = args;
+
+        this.data = {
+          "width": this.width,
+          "height": this.height,
+          "flashGame": this.flashGame
+        }
+
+        if (this.reward == null) {
+          this.reward = new HPReward(ipcMain, this.totalEnvs, true)
+        }
+
       }
 
       create_env() {
@@ -51,7 +48,11 @@ module.exports = class FlashGame extends GameController {
           },
           show: false
         })
-        flashPlayer.loadFile('./envs/flash_player_envs/flash_player.html', {query: {"data": JSON.stringify(this.data)}})
+        flashPlayer.loadFile('./flash_player_envs/flash_player.html', {
+          query: {
+            "data": JSON.stringify(this.data)
+          }
+        })
 
         win.once('ready-to-show', () => {
           this.initFunc(flashPlayer)
@@ -70,9 +71,9 @@ module.exports = class FlashGame extends GameController {
           },
           show: true
         })
-        renderer.loadFile('./envs/flash_player_envs/renderer.html', {
+        renderer.loadFile('./flash_player_envs/renderer.html', {
           query: {
-            "data": JSON.stringify({"width": width, "height": width})
+            "data": JSON.stringify({"width": width, "height": height})
           }
         })
         return renderer
@@ -98,16 +99,17 @@ module.exports = class FlashGame extends GameController {
         }
       }
 
-      step_env(envWebContents, action, actionSet, renderWebContents=null) {
+      step_env(envWebContents, action, actionSet, renderWebContents=null, reset=false) {
           let state = []
           let i = 0
-          let reward = 0
+          let observation = {}
+          let returns
           console.log("started painting")
           send_action(envWebContents, action, actionSet)
           envWebContents.startPainting()
-          envWebContents.on('paint', (event, dirty, frame) => {
+          envWebContents.on('paint', (event, this.crops, frame) => {
             console.log('frame')
-            if (renderWebContents != null) {
+            if (renderWebContents != null && !renderWebContents.isDestroyed()) {
               renderWebContents.send('frame', frame.toDataURL())
             }
             state.push(frame.toBitmap())
@@ -115,19 +117,23 @@ module.exports = class FlashGame extends GameController {
             if (i % this.framesInState == 0) {
               envWebContents.stopPainting()
               console.log("stopped painting")
-              reward = this.reward.get_reward(state)
-              // TODO: Save reward and state in index db
-              // webContents.id, reward, and state
-              // Probably not how to return two variables \/ \/
-              return state, reward
+              if (reset) {
+                returns = this.reward.format_state(state)
+                return returns.highRes
+              } else {
+                returns = this.reward.get_reward(id, state)
+                observation['reward'] = returns.reward
+                observation['state'] = returns.highResState
+                return observation
+              }
             }
           })
       }
     }
 
-    let flashGameEnv = new FlashGameEnv(width, height, flashGame, actionSpace, framesInState, reward, totalEnvs, actionSet, initFunc)
+    let flashGameEnv = new FlashGameEnv(args)
 
-    super(flashGameEnv)
+    super(flashGameEnv, ipcMain)
   }
 
 }
