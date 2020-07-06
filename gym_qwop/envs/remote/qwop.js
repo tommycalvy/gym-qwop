@@ -8,7 +8,7 @@ module.exports = class QWOP extends FlashGame {
     actionSpace: 4,
     width: 640,
     height: 400,
-    crops: [20, 20, 20, 20],
+    crops: [20, 20, 600, 360],
     enableRender: true,
     flashGame: 'qwop.swf',
     reward: null
@@ -48,7 +48,7 @@ module.exports = class QWOP extends FlashGame {
       }, 400)
     }
 
-    
+
 
     let args = [
       totalEnvs,

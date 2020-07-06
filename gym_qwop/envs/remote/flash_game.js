@@ -107,12 +107,12 @@ module.exports = class FlashGame extends GameController {
           console.log("started painting")
           send_action(envWebContents, action, actionSet)
           envWebContents.startPainting()
-          envWebContents.on('paint', (event, this.crops, frame) => {
+          envWebContents.on('paint', (event, dirty, frame) => {
             console.log('frame')
             if (renderWebContents != null && !renderWebContents.isDestroyed()) {
               renderWebContents.send('frame', frame.toDataURL())
             }
-            state.push(frame.toBitmap())
+            state.push(frame.toBitmap().crop(this.crops))
             i++
             if (i % this.framesInState == 0) {
               envWebContents.stopPainting()

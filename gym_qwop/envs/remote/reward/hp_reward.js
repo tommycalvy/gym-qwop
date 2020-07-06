@@ -229,23 +229,25 @@ module.exports = class HPReward {
   }
 
   train_model(states, rewards) {
-    let trewards = []
-    for (let i = 0; i < rewards.length; i++) {
-      trewards.push(tf.scalar(rewards[i]))
-    }
-    this.reward.fit(states, trewards, {
-      batchSize = 25,
-      epochs = 4,
-      shuffle = true
-    }).then((h) => {
-      console.log("Training loss: " + h.history.loss[0])
-    }).then(() => {
-      return this.reward.save('localstorage://updated-reward-model-1')
-    }).then(() => {
-      return ipc.send('update-model')
+    return new Promise(function(resolve, reject) {
+      let trewards = []
+      for (let i = 0; i < rewards.length; i++) {
+        trewards.push(tf.scalar(rewards[i]))
+      }
+      this.reward.fit(states, trewards, {
+        batchSize = 25,
+        epochs = 4,
+        shuffle = true
+      }).then((h) => {
+        console.log("Training loss: " + h.history.loss[0])
+      }).then(() => {
+        return this.reward.save('localstorage://updated-reward-model-1')
+      }).then(() => {
+        return ipc.send('update-model')
+      }).then(() => {
+        resolve()
+      })
     })
-
-
   }
 
 }

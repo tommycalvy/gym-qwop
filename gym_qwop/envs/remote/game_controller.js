@@ -28,7 +28,7 @@ module.exports = class GameController {
     let obs = []
     if (envs == null) {
       for (let i = 0; i < this.totalEnvs; i++) {
-        let webCon = this.envs[i].envWebContents
+        let webCon = this.envs[i].envWin.webContents
         webCon.reload()
         this.env.initFunc(webCon)
         let ob = this.env.step_env(webCon, action, this.envs[i].actionSet, true)
@@ -36,7 +36,7 @@ module.exports = class GameController {
       }
     } else {
       for (let i = 0; i < envs.length; i++) {
-        let webCon = this.envs[envs[i]].envWebContents
+        let webCon = this.envs[envs[i]].envWin.webContents
         webCon.reload()
         this.env.initFunc(webCon)
         let ob = this.env.step_env(webCon, action, this.envs[envs[i]].actionSet, true)
@@ -51,26 +51,25 @@ module.exports = class GameController {
       if (this.env.enableRender) {
         this.envs.push({
           actionSet: this.env.action_set(),
-          envWebContents: this.env.create_env(),
-          renderWebContents: this.env.create_renderer()
+          envWin: this.env.create_env(),
+          renderWin: this.env.create_renderer()
         })
       } else {
         this.envs.push({
           actionSet: this.env.action_set(),
-          envWebContents: this.env.create_env(),
-          renderWebContents: null
+          envWin: this.env.create_env(),
+          renderWin: null
         })
       }
     }
   }
 
   step(id, action) {
-    // TODO: check what the format of the action variable is
     let args = [
-      this.envs[id].envWebContents,
+      this.envs[id].envWin.webContents,
       action,
       this.envs[id].actionSet,
-      this.envs[id].renderWebContents
+      this.envs[id].renderWin.webContents
     ]
     return this.env.step_env(args)
   }
@@ -88,15 +87,25 @@ module.exports = class GameController {
   render(envs=null) {
     if (envs == null) {
       for (let i = 0; i < this.totalEnvs; i++) {
-        if (this.envs[i].renderWebContents != null) {
-          this.envs[i].renderWebContents = this.env.create_renderer()
+        if (this.envs[i].renderWin != null) {
+          this.envs[i].renderWin = this.env.create_renderer()
         }
       }
     } else {
       for (let i = 0; i < envs.length; i++) {
-        if (this.envs[envs[i]].renderWebContents != null) {
-          this.envs[envs[i]].renderWebContents = this.env.create_renderer()
+        if (this.envs[envs[i]].renderWin != null) {
+          this.envs[envs[i]].renderWin = this.env.create_renderer()
         }
+      }
+    }
+  }
+
+  close() {
+    // save reward model maybe
+    for (let i = 0; i < this.totalEnvs; i++) {
+      this.envs[i].envWin.close()
+      if (this.envs[i].renderWin != null) {
+        this.envs[i].renderWin.close()
       }
     }
   }

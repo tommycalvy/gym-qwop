@@ -19,6 +19,13 @@ var rewards = []
 var count = 0
 let trainingSize = 500
 
+let trajNum = document.getElementById('traj-num')
+
+window.setInterval(function() {
+  let trajCount = await reward.db.["trajectories"].count()
+  trajNum.innerHTML = "Trajectories Available: " + trajCount
+}, 1000)
+
 function startTraining() {
   trajs = reward.get_sorted_trajs()
   presentClips()
@@ -53,26 +60,31 @@ function presentClips() {
 
 function recordPreference(pref) {
   window.clearInterval(playVid)
-  let dif1 = pref - traj1.exprew
-  let dif2 = 1 - pref - traj2.exprew
-  let adjusted
-  let i
-  for (i = 0; i < traj1.endState - traj1.begState; i++) {
-    states.push(traj1States[i].state)
-    adjusted = traj1States[i].reward + dif1 / (traj1.endState - traj1.begState)
-    rewards.push(adjusted)
+  if (pref != null) {
+    let dif1 = pref - traj1.exprew
+    let dif2 = 1 - pref - traj2.exprew
+    let adjusted
+    let i
+    for (i = 0; i < traj1.endState - traj1.begState; i++) {
+      states.push(traj1States[i].state)
+      adjusted = traj1States[i].reward + dif1 / (traj1.endState - traj1.begState)
+      rewards.push(adjusted)
+    }
+    for (i = 0; i < traj2.endState - traj2.begState; i++) {
+      states.push(traj2States[i].state)
+      adjusted = traj2States[i].reward + dif2 / (traj2.endState - traj2.begState)
+      rewards.push(adjusted)
+    }
+    count++
   }
-  for (i = 0; i < traj2.endState - traj2.begState; i++) {
-    states.push(traj2States[i].state)
-    adjusted = traj2States[i].reward + dif2 / (traj2.endState - traj2.begState)
-    rewards.push(adjusted)
-  }
-  count++
   trajs.shift()
   trajs.shift()
   presentClips()
   if (count % 500) {
-    train_model(states, rewards)
+    reward.train_model(states, rewards).then(() => {
+      states = []
+      rewards = []
+    })
   }
 
   reward.db.transaction('rw' reward.db.["env" + traj1.env], reward.db.["env" + traj2.env], reward.db.["trajectories"], () => {

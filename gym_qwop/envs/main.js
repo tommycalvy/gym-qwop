@@ -29,19 +29,24 @@ ipc.serve(function() {
     ipc.server.on('step', function(actions, socket) {
       ipc.log('step env: '.debug, actions);
       let returns = qwop.step_all(actions)
-      ipc.server.emit(socket, 'step', returns+' world!');
+      ipc.server.emit(socket, 'step', JSON.stringify(returns));
     });
 
     ipc.server.on('reset', function(data, socket) {
       ipc.log('got a message : '.debug, data);
       let obs = qwop.reset()
-      ipc.server.emit(socket, 'step', obs+' world!');
+      ipc.server.emit(socket, 'reset', JSON.stringify(obs));
     });
 
     ipc.server.on('render', function(data, socket) {
       ipc.log('got a message : '.debug, data);
       qwop.render()
-      ipc.server.emit(socket, 'step', data+' world!');
+    });
+
+    ipc.server.on('close', function(data, socket) {
+      ipc.log('got a message : '.debug, data);
+      qwop.close()
+      app.quit()
     });
 
     ipc.server.on('socket.disconnected', function(socket, destroyedSocketID) {
