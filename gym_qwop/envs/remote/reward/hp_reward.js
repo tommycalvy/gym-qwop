@@ -200,7 +200,7 @@ module.exports = class HPReward {
       },
       show: false
     })
-    gui.loadFile('human_preference.html', {query: {"data": JSON.stringify(this.data)}})
+    gui.loadFile('./remote/reward/human_preference.html', {query: {"data": JSON.stringify(this.data)}})
 
     gui.once('ready-to-show', () => {
       gui.show()

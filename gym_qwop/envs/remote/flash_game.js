@@ -49,14 +49,14 @@ module.exports = class FlashGame extends GameController {
           },
           show: false
         })
-        flashPlayer.loadFile('./flash_player_envs/flash_player.html', {
+        flashPlayer.loadFile('./remote/flash_player_envs/flash_player.html', {
           query: {
             "data": JSON.stringify(this.data)
           }
         })
 
-        win.once('ready-to-show', () => {
-          this.initFunc(flashPlayer)
+        flashPlayer.once('ready-to-show', () => {
+          this.initFunc(flashPlayer.webContents)
         })
         return flashPlayer
       }
@@ -72,7 +72,7 @@ module.exports = class FlashGame extends GameController {
           },
           show: true
         })
-        renderer.loadFile('./flash_player_envs/renderer.html', {
+        renderer.loadFile('./remote/flash_player_envs/renderer.html', {
           query: {
             "data": JSON.stringify({"width": width, "height": height})
           }
