@@ -1,28 +1,27 @@
 const { BrowserWindow } = require('electron')
-import * as tf from '@tensorflow/tfjs-node'
+const tf = require('@tensorflow/tfjs-node')
 const Dexie = require('dexie')
 
 module.exports = class HPReward {
 
-  constructor(ipc, totalEnvs, createGui=false, statesInTraj=25, totTraj=5, framesInState=4, width=81, height=81, reward_lr=0.95) {
+  constructor(ipc, totalEnvs, statesInTraj=25, totTraj=5, framesInState=4, width=81, height=81, reward_lr=0.95) {
     this.totalEnvs = totalEnvs
     this.statesInTraj = statesInTraj
     this.totTraj = totTraj
     this.framesInState = framesInState;
+    this.inputWidth = width;
+    this.inputHeight = height;
     this.guiWidth = 1200;
     this.guiHeight = 800;
     this.reward_lr = reward_lr
     this.count = 0
     this.trainingCount = 0
     this.reward = this.build_reward()
-    this.db = create_db()
-    if (createGui) {
-      this.gui = create_gui()
-      this.data = {"totalEnvs": totalEnvs}
-    }
+    this.db = this.create_db()
+    this.data = {"totalEnvs": totalEnvs}
     Dexie.debug = true
     ipc.on('update-model', (even, args) => {
-      this.reward = await tf.loadLayersModel('localstorage://updated-reward-model-1')
+      this.reward = tf.loadLayersModel('localstorage://updated-reward-model-1')
     })
   }
 
@@ -31,7 +30,7 @@ module.exports = class HPReward {
     // Input is 81x81x4
     // 144 weights
     model.add(tf.layers.conv2d({
-      inputShape: [this.width, this.height, this.frames],
+      inputShape: [this.inputWidth, this.inputHeight, this.framesInState],
       kernelSize: 3,
       filters: 16,
       strides: 2,
@@ -111,13 +110,13 @@ module.exports = class HPReward {
     let tframes = [this.framesInState]
     for (let i = 0; i < this.framesInState; i++) {
       tframe = tf.fromPixels(frames[i], 3).toFloat()
-      tframe = tframe.mean(2, true)
+      tframe = tframe.mean(2, true).round()
       tframes[i] = tframe
     }
     state = tf.stack(tframes)
-    let lowRes = tf.image.cropAndResize(state, [0.2, 0.2, 1, 0.7], [0], [81, 81])
-    lowRes = state.batchNorm([0], [1])
-    lowRes = state.squeeze([3])
+    let lowRes = tf.image.resizeBilinear(state, [81, 81])
+    lowRes = tf.batchNorm(lowRes, [0], [1])
+    lowRes = lowRes.squeeze([3])
     let returns = {
       highRes: state,
       lowRes: lowRes
@@ -133,12 +132,12 @@ module.exports = class HPReward {
     schema["trajectories"] = "++num,env,begState,endState,variance,exprew,trained"
     let db = new Dexie("RewardDatabase")
     db.version(1).stores(schema)
-    return await db.open()
+    return db.open()
   }
 
   record_returns(id, returns) {
-    return this.db.transaction('w', this.db.["env" + id], async () => {
-      await this.db.["env" + id].add({
+    return this.db.transaction('w', this.db["env" + id], async () => {
+      await this.db["env" + id].add({
         reward: returns.reward,
         state: returns.lowResState,
         frames: returns.frames
@@ -149,12 +148,12 @@ module.exports = class HPReward {
   create_trajectories() {
     let tables = []
     for (let i = 0; i < this.totalEnvs; i++) {
-      tables.push(this.db.["env" + i])
+      tables.push(this.db["env" + i])
     }
-    tables.push(this.db.["trajectories"])
+    tables.push(this.db["trajectories"])
     return this.db.transaction('rw', tables, async () => {
       for (let j = 0; j < this.totalEnvs; j++) {
-        let traj = await this.db.["env" + i]
+        let traj = await this.db["env" + i]
           .where('num')
           .between(this.trainingCount * this.statesInTraj * this.totalTraj, (this.trainingCount + 1) * this.statesInTraj * this.totalTraj)
           .toArray()
@@ -169,12 +168,12 @@ module.exports = class HPReward {
           for (let i = k * this.statesInTraj; i < k * this.statesInTraj + this.statesInTraj; i++) {
             sum += Math.pow(traj[i].reward - mean, 2)
           }
-          let var = sum / (this.statesInTraj - 1)
-          await this.db.["trajectories"].add({
+          let variance = sum / (this.statesInTraj - 1)
+          await this.db["trajectories"].add({
             env: j,
             begState: k * this.statesInTraj,
             endState: (k + 1) * this.statesInTraj,
-            variance: var,
+            variance: variance,
             exprew: exp
           })
         }
@@ -184,10 +183,10 @@ module.exports = class HPReward {
   }
 
   get_sorted_trajs() {
-    return await this.db.["trajectories"].sortBy('variance').reverse()
+    return this.db["trajectories"].sortBy('variance').reverse()
   }
 
-  get db() {
+  get hpdb() {
     return this.db
   }
 
@@ -235,9 +234,9 @@ module.exports = class HPReward {
         trewards.push(tf.scalar(rewards[i]))
       }
       this.reward.fit(states, trewards, {
-        batchSize = 25,
-        epochs = 4,
-        shuffle = true
+        batchSize: 25,
+        epochs: 4,
+        shuffle: true
       }).then((h) => {
         console.log("Training loss: " + h.history.loss[0])
       }).then(() => {

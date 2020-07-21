@@ -1,6 +1,5 @@
-const { BrowserWindow, ipcMain} = require('electron')
+const { BrowserWindow } = require('electron')
 const GameController = require('./game_controller.js')
-const HPReward = require('./reward/hp_reward.js')
 
 module.exports = class FlashGame extends GameController {
 
@@ -11,28 +10,30 @@ module.exports = class FlashGame extends GameController {
     class FlashGameEnv {
 
       constructor(...args) {
+        console.log(args);
         [
-          this.totalEnvs,
-          this.framesInState,
-          this.actionSpace,
-          this.width,
-          this.height,
-          this.crops,
-          this.enableRender,
-          this.flashGame,
-          this.reward,
-          this.actionSet,
-          this.initFunc
+          [
+            [
+              this.totalEnvs,
+              this.framesInState,
+              this.actionSpace,
+              this.width,
+              this.height,
+              this.crops,
+              this.enableRender,
+              this.flashGame,
+              this.reward,
+              this.actionSet,
+              this.initFunc,
+              this.ipcMain
+            ]
+          ]
         ] = args;
 
         this.data = {
           "width": this.width,
           "height": this.height,
           "flashGame": this.flashGame
-        }
-
-        if (this.reward == null) {
-          this.reward = new HPReward(ipcMain, this.totalEnvs, true)
         }
 
       }
@@ -87,6 +88,28 @@ module.exports = class FlashGame extends GameController {
         return this.actionSet()
       }
 
+      init_envs() {
+        let envs = [this.totalEnvs]
+        for (let i = 0; i < this.totalEnvs; i++) {
+          if (this.enableRender) {
+            envs.push({
+              actionSet: this.action_set(),
+              envWin: this.create_env(),
+              renderWin: this.create_renderer()
+            })
+          } else {
+            envs.push({
+              actionSet: this.action_set(),
+              envWin: this.create_env(),
+              renderWin: null
+            })
+          }
+        }
+        this.reward.create_gui()
+        return envs
+      }
+
+
       send_action(envWebContents, action, actionSet) {
         for (let i = 0; i < this.actionSpace; i++) {
           if (action[i] && !actionSet[i].down) {
@@ -132,8 +155,8 @@ module.exports = class FlashGame extends GameController {
     }
 
     let flashGameEnv = new FlashGameEnv(args)
-
-    super(flashGameEnv, ipcMain)
+    console.log(flashGameEnv)
+    super(flashGameEnv)
   }
 
 }

@@ -2,11 +2,11 @@ const { BrowserWindow } = require('electron')
 
 module.exports = class GameController {
 
-  constructor(env, ipc) {
+  constructor(env) {
     this.env = env
     this.totalEnvs = this.env.total_envs()
-    this.envs = [this.totalEnvs]
-    this.ipc = ipc
+    this.envs = []
+    //this.ipc = ipc
     //this.remote = create_remote()
   }
 
@@ -46,22 +46,8 @@ module.exports = class GameController {
     return obs
   }
 
-  create_envs() {
-    for (let i = 0; i < this.totalEnvs; i++) {
-      if (this.env.enableRender) {
-        this.envs.push({
-          actionSet: this.env.action_set(),
-          envWin: this.env.create_env(),
-          renderWin: this.env.create_renderer()
-        })
-      } else {
-        this.envs.push({
-          actionSet: this.env.action_set(),
-          envWin: this.env.create_env(),
-          renderWin: null
-        })
-      }
-    }
+  init_envs() {
+    this.envs = this.env.init_envs()
   }
 
   step(id, action) {

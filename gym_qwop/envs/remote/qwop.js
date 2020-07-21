@@ -1,17 +1,18 @@
+const { ipcMain } = require('electron')
 const FlashGame = require('./flash_game.js')
+const HPReward = require('./reward/hp_reward.js')
 
 module.exports = class QWOP extends FlashGame {
 
   constructor({
-    totalEnvs: 1,
-    framesInState: 4,
-    actionSpace: 4,
-    width: 640,
-    height: 400,
-    crops: [20, 20, 600, 360],
-    enableRender: true,
-    flashGame: 'qwop.swf',
-    reward: null
+    totalEnvs = 1,
+    framesInState = 4,
+    actionSpace = 4,
+    width = 640,
+    height = 400,
+    crops = [20, 20, 600, 360],
+    enableRender = true,
+    flashGame = 'qwop.swf'
   } = {}) {
 
     let actionSet = function() {
@@ -48,7 +49,7 @@ module.exports = class QWOP extends FlashGame {
       }, 400)
     }
 
-
+    let reward = new HPReward(ipcMain, totalEnvs)
 
     let args = [
       totalEnvs,
@@ -61,7 +62,8 @@ module.exports = class QWOP extends FlashGame {
       flashGame,
       reward,
       actionSet,
-      initFunc
+      initFunc,
+      ipcMain
     ];
 
     super(args)

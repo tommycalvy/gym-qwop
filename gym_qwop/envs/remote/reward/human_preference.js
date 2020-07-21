@@ -22,23 +22,23 @@ let trainingSize = 500
 let trajNum = document.getElementById('traj-num')
 
 window.setInterval(function() {
-  let trajCount = await reward.db.["trajectories"].count()
+  let trajCount = await reward.hpdb["trajectories"].count()
   trajNum.innerHTML = "Trajectories Available: " + trajCount
 }, 1000)
 
-function startTraining() {
-  trajs = reward.get_sorted_trajs()
+async function startTraining() {
+  trajs = await reward.get_sorted_trajs()
   presentClips()
 }
 
 function presentClips() {
   traj1 = trajs[0]
   traj2 = trajs[1]
-  traj1States = await reward.db.["env" + traj1.env]
+  traj1States = await reward.hpdb["env" + traj1.env]
     .where('num')
     .between(traj1.begState, traj1.endState)
     .toArray()
-  traj2States = await reward.db.["env" + traj2.env]
+  traj2States = await reward.hpdb["env" + traj2.env]
     .where('num')
     .between(traj2.begState, traj2.agentidState)
     .toArray()
@@ -87,16 +87,16 @@ function recordPreference(pref) {
     })
   }
 
-  reward.db.transaction('rw' reward.db.["env" + traj1.env], reward.db.["env" + traj2.env], reward.db.["trajectories"], () => {
-    reward.db.["env" + traj1.env]
+  reward.hpdb.transaction('rw' reward.hpdb["env" + traj1.env], reward.hpdb["env" + traj2.env], reward.hpdb["trajectories"], () => {
+    reward.hpdb["env" + traj1.env]
       .query('num')
       .between(traj1.begState, traj1.endState)
       .delete()
-    reward.db.["env" + traj2.env]
+    reward.hpdb["env" + traj2.env]
       .query('num')
       .between(traj2.begState, traj2.endState)
       .delete()
-    reward.db.["trajectory"]
+    reward.hpdb["trajectory"]
       .query('num')
       .anyOf(traj1.num, traj2.num)
       .delete()

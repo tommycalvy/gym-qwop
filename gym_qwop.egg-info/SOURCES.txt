@@ -1,0 +1,7 @@
+README.md
+setup.py
+gym_qwop.egg-info/PKG-INFO
+gym_qwop.egg-info/SOURCES.txt
+gym_qwop.egg-info/dependency_links.txt
+gym_qwop.egg-info/requires.txt
+gym_qwop.egg-info/top_level.txt

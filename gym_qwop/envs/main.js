@@ -1,6 +1,7 @@
 const { app } = require('electron')
 const path = require('path')
 const ipc = require('node-ipc')
+const QWOP = require('./remote/qwop.js')
 
 app.commandLine.appendSwitch('ppapi-flash-path', app.getPath('pepperFlashSystemPlugin'))
 
@@ -19,7 +20,7 @@ let args = {
   enableRender: (cmdargs[8] == true)
 }
 let qwop = new QWOP(args)
-app.whenReady().then(qwop.create_envs())
+app.whenReady().then(qwop.init_envs())
 
 
 

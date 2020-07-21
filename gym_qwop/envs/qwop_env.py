@@ -1,4 +1,5 @@
 import gym
+import numpy as np
 from gym import error, spaces, utils
 from gym.utils import seeding
 from gym_qwop.envs.qwop_serv import QwopServ
@@ -6,16 +7,25 @@ from gym_qwop.envs.qwop_serv import QwopServ
 class QwopEnv(gym.Env):
 
   def __init__(self, environments=1, frames=4, screen_size=(640, 400),
-              crops=(20, 20, 600, 360), enable_render=true):
+              crops=(20, 20, 600, 360), enable_render=True):
 
 
     self.screen_width = crops[2]
     self.screen_height = crops[3]
     self.observation_space = spaces.Box(
-        low=0, high=255, shape=(self.screen_width, self.screen_height, frames)
+        low=0,
+        high=255,
+        shape=(self.screen_width, self.screen_height, frames),
+        dtype=np.uint8
     )
     self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
-    self.qwop_serv = QwopServ(environments, frames, screen_size, crops, enable_render)
+    self.qwop_serv = QwopServ(
+        environments,
+        frames,
+        screen_size,
+        crops,
+        enable_render
+    )
 
   def step(self, actions):
     returns = self.qwop_serv.step(actions)
