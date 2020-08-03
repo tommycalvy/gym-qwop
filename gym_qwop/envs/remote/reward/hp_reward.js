@@ -23,6 +23,7 @@ module.exports = class HPReward {
     ipc.on('update-model', (even, args) => {
       this.reward = tf.loadLayersModel('localstorage://updated-reward-model-1')
     })
+    console.log('HPReward')
   }
 
   build_reward() {
@@ -95,7 +96,7 @@ module.exports = class HPReward {
       activation: 'tanh'
     }));
     // 1024 weights
-    model.summary();
+    //model.summary();
 
     model.compile({
       optimizer: tf.train.adam(this.reward_lr),
@@ -105,26 +106,37 @@ module.exports = class HPReward {
   }
 
   format_state(frames) {
-    let tframe
-    let state
-    let tframes = [this.framesInState]
-    for (let i = 0; i < this.framesInState; i++) {
-      tframe = tf.fromPixels(frames[i], 3).toFloat()
-      tframe = tframe.mean(2, true).round()
-      tframes[i] = tframe
-    }
-    state = tf.stack(tframes)
-    let lowRes = tf.image.resizeBilinear(state, [81, 81])
-    lowRes = tf.batchNorm(lowRes, [0], [1])
-    lowRes = lowRes.squeeze([3])
-    let returns = {
-      highRes: state,
-      lowRes: lowRes
-    }
-    return returns
+    console.log('Inside format_state')
+    let framesInState = this.framesInState
+    return new Promise((resolve, reject) => {
+      let tframes = []
+      for (let i = 0; i < framesInState; i++) {
+        let promise = new Promise((resolve, reject) => {
+          let tframe = tf.node.decodePng(frames[i], 3)
+          //console.log(tframe)
+          tframe = tframe.mean(2, true)
+          //console.log(tframe)
+          resolve(tframe)
+        })
+        tframes.push(promise)
+      }
+      Promise.all(tframes).then(state => {
+        return tf.stack(state)
+      }).then(state => {
+        console.log(state)
+        return tf.image.resizeBilinear(state, [81, 81])
+      }).then(state => {
+        console.log(state)
+        return state.squeeze([3])
+      }).then(state => {
+        console.log(state)
+        resolve(state)
+      })
+    })
   }
 
   create_db() {
+    console.log('creating db')
     let schema = {}
     for (let i = 1; i <= this.totalEnvs; i++) {
       schema["env" + i] = "++num,reward"
@@ -132,20 +144,27 @@ module.exports = class HPReward {
     schema["trajectories"] = "++num,env,begState,endState,variance,exprew,trained"
     let db = new Dexie("RewardDatabase")
     db.version(1).stores(schema)
+    console.log('created db')
     return db.open()
   }
 
   record_returns(id, returns) {
+    console.log('Inside record_returns')
     return this.db.transaction('w', this.db["env" + id], async () => {
       await this.db["env" + id].add({
         reward: returns.reward,
-        state: returns.lowResState,
-        frames: returns.frames
+        tensor: returns.tensor,
+        png: returns.png
       })
+    }).then(() => {
+      console.log('Recorded Returns')
+    }).catch(err => {
+      console.error(err.stack)
     })
   }
 
   create_trajectories() {
+    console.log('Inside create_trajectories')
     let tables = []
     for (let i = 0; i < this.totalEnvs; i++) {
       tables.push(this.db["env" + i])
@@ -179,6 +198,10 @@ module.exports = class HPReward {
         }
       }
       this.trainingCount++
+    }).then(() => {
+      console.log('Created Trajectories')
+    }).catch(err => {
+      console.log(err.stack)
     })
   }
 
@@ -210,21 +233,22 @@ module.exports = class HPReward {
     return gui
   }
 
-  get_reward(id, frames) {
-    let state = format_state(frames)
-    let reward = this.reward.predict(state.lowRes)
-    let returns = {
-      reward: reward.dataSync(),
-      lowResState: state.lowRes,
-      highResState: state.highRes.dataSync(),
-      frames: frames
-    }
+  get_reward(id, obs) {
     this.count++
-    record_returns(id, returns)
-    if (this.count % this.statesInTraj * this.totTraj * this.totalEnvs == 0) {
-      create_trajectories()
-    }
-    return returns
+    let $this = this
+    return new Promise((resolve, reject) => {
+      let reward = $this.reward.predict(obs.tensor).dataSync()
+      let returns = {
+        reward: reward,
+        tensor: obs.tensor.dataSync(),
+        png: obs.png
+      }
+      $this.record_returns(id, returns)
+      if ($this.count % $this.statesInTraj * $this.totTraj * $this.totalEnvs == 0) {
+        $this.create_trajectories()
+      }
+      resolve(reward)
+    })
   }
 
   train_model(states, rewards) {

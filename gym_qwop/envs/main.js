@@ -11,13 +11,13 @@ let args = {
   framesInState: parseInt(cmdargs[1], 10),
   width: parseInt(cmdargs[2], 10),
   height: parseInt(cmdargs[3], 10),
-  crops: [
-    parseInt(cmdargs[4], 10),
-    parseInt(cmdargs[5], 10),
-    parseInt(cmdargs[6], 10),
-    parseInt(cmdargs[7], 10)
-  ],
-  enableRender: (cmdargs[8] == true)
+  crops: {
+    x: parseInt(cmdargs[4], 10),
+    y: parseInt(cmdargs[5], 10),
+    width: parseInt(cmdargs[6], 10),
+    height: parseInt(cmdargs[7], 10)
+  },
+  enableRender: (cmdargs[8] == 'True')
 }
 let qwop = new QWOP(args)
 app.whenReady().then(() => {
@@ -26,19 +26,22 @@ app.whenReady().then(() => {
 
 
 
-ipc.config.id = 'qwop';
-ipc.serve(function() {
+let serverAddress = '/tmp/app.qwop'
+ipc.serve(serverAddress, function() {
     // The path is '/tmp/app.qwop'
     ipc.server.on('step', function(actions, socket) {
       ipc.log('step env: '.debug, actions);
-      let returns = qwop.step_all(actions)
-      ipc.server.emit(socket, 'step', JSON.stringify(returns));
+      qwop.step_all(actions).then(obs => {
+        ipc.server.emit(socket, 'step', JSON.stringify(obs));
+      })
     });
 
     ipc.server.on('reset', function(data, socket) {
       ipc.log('got a message : '.debug, data);
-      let obs = qwop.reset()
-      ipc.server.emit(socket, 'reset', JSON.stringify(obs));
+      qwop.reset().then(obs => {
+        console.log('Sending Observations after reset')
+        ipc.server.emit(socket, 'reset', JSON.stringify(obs));
+      })
     });
 
     ipc.server.on('render', function(data, socket) {

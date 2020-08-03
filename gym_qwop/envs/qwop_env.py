@@ -9,14 +9,11 @@ class QwopEnv(gym.Env):
   def __init__(self, environments=1, frames=4, screen_size=(640, 400),
               crops=(20, 20, 600, 360), enable_render=True):
 
-
-    self.screen_width = crops[2]
-    self.screen_height = crops[3]
     self.observation_space = spaces.Box(
         low=0,
-        high=255,
-        shape=(self.screen_width, self.screen_height, frames),
-        dtype=np.uint8
+        high=1,
+        shape=(frames, 81, 81),
+        dtype=np.float32
     )
     self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])
     self.qwop_serv = QwopServ(

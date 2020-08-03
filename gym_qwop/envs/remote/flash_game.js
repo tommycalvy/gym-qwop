@@ -5,12 +5,12 @@ module.exports = class FlashGame extends GameController {
 
   constructor(...args) {
 
-    console.log(args)
+    //console.log(args)
 
     class FlashGameEnv {
 
       constructor(...args) {
-        console.log(args);
+        //console.log(args);
         [
           [
             [
@@ -49,7 +49,7 @@ module.exports = class FlashGame extends GameController {
           },
           show: false
         })
-        flashPlayer.loadFile('./remote/flash_player_envs/flash_player.html', {
+        flashPlayer.loadFile('./remote/flash_player_env/flash_player.html', {
           query: {
             "data": JSON.stringify(this.data)
           }
@@ -72,7 +72,7 @@ module.exports = class FlashGame extends GameController {
           },
           show: true
         })
-        renderer.loadFile('./remote/flash_player_envs/renderer.html', {
+        renderer.loadFile('./remote/flash_player_env/render.html', {
           query: {
             "data": JSON.stringify({"width": width, "height": height})
           }
@@ -80,7 +80,7 @@ module.exports = class FlashGame extends GameController {
         return renderer
       }
 
-      total_envs() {
+      get total_envs() {
         return this.totalEnvs
       }
 
@@ -89,7 +89,8 @@ module.exports = class FlashGame extends GameController {
       }
 
       init_envs() {
-        let envs = [this.totalEnvs]
+        console.log('Creating Environments')
+        let envs = []
         for (let i = 0; i < this.totalEnvs; i++) {
           if (this.enableRender) {
             envs.push({
@@ -109,53 +110,80 @@ module.exports = class FlashGame extends GameController {
         return envs
       }
 
-
       send_action(envWebContents, action, actionSet) {
-        for (let i = 0; i < this.actionSpace; i++) {
-          if (action[i] && !actionSet[i].down) {
-            actionSet[i].down = true
-            envWebContents.sendInputEvent({ type: 'keyDown', keyCode: actionSet[i].key })
-          } else if (!action[i] && actionSet[i].down) {
-            actionSet[i].down = false
-            envWebContents.sendInputEvent({ type: 'keyUp', keyCode: actionSet[i].key })
+        console.log('Inside send_action')
+        let actionSpace = this.actionSpace
+        return new Promise((resolve, reject) => {
+          for (let i = 0; i < actionSpace; i++) {
+            if (action[i] && !actionSet[i].down) {
+              actionSet[i].down = true
+              envWebContents.sendInputEvent({ type: 'keyDown', keyCode: actionSet[i].key })
+            } else if (!action[i] && actionSet[i].down) {
+              actionSet[i].down = false
+              envWebContents.sendInputEvent({ type: 'keyUp', keyCode: actionSet[i].key })
+            }
           }
-        }
+          resolve()
+        })
+      }
+
+      next_state(envWebContents, framesInState, renderWebContents=null) {
+        console.log('Inside next_state')
+        let crops = this.crops
+        return new Promise((resolve, reject) => {
+          let state = []
+          let i = 0
+          envWebContents.startPainting()
+          console.log('started painting')
+          envWebContents.on('paint', (event, dirty, frame) => {
+            console.log('frame')
+            if (renderWebContents != null) {
+              renderWebContents.send('frame', frame.toDataURL())
+            }
+            let promise = new Promise((resolve, reject) => {
+              let png = frame.crop(crops).toPNG()
+              resolve(png)
+            })
+            state.push(promise)
+            i++
+            if (i >= framesInState) {
+              //Maybe you need to remove the listener somehow
+              envWebContents.stopPainting()
+              console.log('stopped painting')
+              Promise.all(state).then(state => resolve(state))
+            }
+          })
+        })
       }
 
       step_env(envWebContents, action, actionSet, renderWebContents=null, reset=false) {
-          let state = []
-          let i = 0
-          let observation = {}
-          let returns
-          console.log("started painting")
-          send_action(envWebContents, action, actionSet)
-          envWebContents.startPainting()
-          envWebContents.on('paint', (event, dirty, frame) => {
-            console.log('frame')
-            if (renderWebContents != null && !renderWebContents.isDestroyed()) {
-              renderWebContents.send('frame', frame.toDataURL())
+        console.log('Inside step_env')
+        const $this = this
+        console.log('this fucked up')
+        return new Promise((resolve, reject) => {
+          let png
+          console.log('Inside promise of step_env')
+          this.send_action(envWebContents, action, actionSet).then(() => {
+            return this.next_state(envWebContents, this.framesInState, renderWebContents)
+          }).then(state => {
+            console.log('state!!')
+            console.log(state)
+            png = state
+            return this.reward.format_state(state)
+          }).then(tensor => {
+            let obs = {
+              png: png,
+              tensor: tensor
             }
-            state.push(frame.toBitmap().crop(this.crops))
-            i++
-            if (i % this.framesInState == 0) {
-              envWebContents.stopPainting()
-              console.log("stopped painting")
-              if (reset) {
-                returns = this.reward.format_state(state)
-                return returns.highRes
-              } else {
-                returns = this.reward.get_reward(id, state)
-                observation['reward'] = returns.reward
-                observation['state'] = returns.highResState
-                return observation
-              }
-            }
+            resolve(obs)
           })
+        })
       }
+
     }
 
     let flashGameEnv = new FlashGameEnv(args)
-    console.log(flashGameEnv)
+    //console.log(flashGameEnv)
     super(flashGameEnv)
   }
 

@@ -1,5 +1,6 @@
 const ipc = require('electron').ipcRenderer
 const HPReward = require('./hp_reward.js')
+const querystring = require('querystring')
 
 let query = querystring.parse(global.location.search);
 let data = JSON.parse(query['?data']);
@@ -22,16 +23,21 @@ let trainingSize = 500
 let trajNum = document.getElementById('traj-num')
 
 window.setInterval(function() {
-  let trajCount = await reward.hpdb["trajectories"].count()
-  trajNum.innerHTML = "Trajectories Available: " + trajCount
+  reward.hpdb["trajectories"].count().then(trajCount => {
+    trajNum.innerHTML = "Trajectories Available: " + trajCount
+  }).catch(err => {
+    console.log(err.stack)
+  })
 }, 1000)
+
+console.log('Interval Set')
 
 async function startTraining() {
   trajs = await reward.get_sorted_trajs()
   presentClips()
 }
 
-function presentClips() {
+async function presentClips() {
   traj1 = trajs[0]
   traj2 = trajs[1]
   traj1States = await reward.hpdb["env" + traj1.env]
@@ -87,7 +93,7 @@ function recordPreference(pref) {
     })
   }
 
-  reward.hpdb.transaction('rw' reward.hpdb["env" + traj1.env], reward.hpdb["env" + traj2.env], reward.hpdb["trajectories"], () => {
+  reward.hpdb.transaction('rw', reward.hpdb["env" + traj1.env], reward.hpdb["env" + traj2.env], reward.hpdb["trajectories"], () => {
     reward.hpdb["env" + traj1.env]
       .query('num')
       .between(traj1.begState, traj1.endState)
@@ -100,6 +106,10 @@ function recordPreference(pref) {
       .query('num')
       .anyOf(traj1.num, traj2.num)
       .delete()
+  }).then(() => {
+    console.log('Deleted Trajectories')
+  }).catch(err => {
+    console.log(err.stack)
   })
 
 }

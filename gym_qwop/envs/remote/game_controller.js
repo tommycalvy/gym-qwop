@@ -4,7 +4,7 @@ module.exports = class GameController {
 
   constructor(env) {
     this.env = env
-    this.totalEnvs = this.env.total_envs()
+    console.log('Total Environments: ' + this.env.totalEnvs)
     this.envs = []
     //this.ipc = ipc
     //this.remote = create_remote()
@@ -24,26 +24,53 @@ module.exports = class GameController {
   }
 
   reset(envs=null) {
-    let action = [false, false, false, false]
-    let obs = []
-    if (envs == null) {
-      for (let i = 0; i < this.totalEnvs; i++) {
-        let webCon = this.envs[i].envWin.webContents
-        webCon.reload()
-        this.env.initFunc(webCon)
-        let ob = this.env.step_env(webCon, action, this.envs[i].actionSet, true)
-        obs.push(ob)
+    let env = this.env
+    let envList = this.envs
+    return new Promise(function(resolve, reject) {
+      let action = [false, false, false, false]
+      let promises = []
+      if (envs == null) {
+        for (let i = 0; i < env.totalEnvs; i++) {
+          let promise = new Promise((resolve, reject) => {
+            let webCon = envList[i].envWin.webContents
+            webCon.reload()
+            env.initFunc(webCon).then(() => {
+              let actionSet = envList[i].actionSet
+              let renderCon = envList[i].renderWin.webContents
+              return env.step_env(webCon, action, actionSet, renderCon, true)
+            }).then(obs => {
+              console.log(obs)
+              return obs.tensor.dataSync()
+            }).then(obs => {
+              resolve(obs)
+            })
+          })
+          promises.push(promise)
+        }
+      } else {
+        for (let i = 0; i < envs.length; i++) {
+          let promise = new Promise((resolve, reject) => {
+            let webCon = envList[envs[i]].envWin.webContents
+            webCon.reload()
+            env.initFunc(webCon).then(() => {
+              let actionSet = envList[envs[i]].actionSet
+              let renderCon = envList[envs[i]].renderWin.webContents
+              return env.step_env(webCon, action, actionSet, renderCon, true)
+            }).then(obs => {
+              return obs.tensor.dataSync()
+            }).then(obs => {
+              resolve(obs)
+            })
+          })
+          promises.push(promise)
+        }
       }
-    } else {
-      for (let i = 0; i < envs.length; i++) {
-        let webCon = this.envs[envs[i]].envWin.webContents
-        webCon.reload()
-        this.env.initFunc(webCon)
-        let ob = this.env.step_env(webCon, action, this.envs[envs[i]].actionSet, true)
-        obs.push(ob)
-      }
-    }
-    return obs
+      Promise.all(promises).then(obs => {
+        console.log('reset function ending')
+        console.log(obs)
+        resolve(obs)
+      })
+    })
   }
 
   init_envs() {
@@ -51,28 +78,39 @@ module.exports = class GameController {
   }
 
   step(id, action) {
+    let observation
     let args = [
       this.envs[id].envWin.webContents,
       action,
       this.envs[id].actionSet,
       this.envs[id].renderWin.webContents
     ]
-    return this.env.step_env(args)
+    this.env.step_env(args).then(obs => {
+      observation = obs.tensor.dataSync()
+      return this.env.get_reward(id, obs)
+    }).then(reward => {
+      return {observation: observation, reward: reward}
+    })
   }
 
   step_all(actions) {
-    let returns = []
-    let obsrew
-    for (let i = 0; i < this.totalEnvs; i++) {
-      obsrew = step(i, actions[i])
-      returns.push(obsrew)
-    }
-    return returns
+    let env = this.env
+    return new Promise((resolve, reject) => {
+      let promises = []
+      for (let i = 0; i < env.totalEnvs; i++) {
+        let promise = new Promise((resolve, reject) => {
+          let obsrew = step(i, actions[i])
+          resolve(obsrew)
+        })
+        promises.push(promise)
+      }
+      Promise.all(promises).then(obsrews => resolve(obsrews))
+    })
   }
 
   render(envs=null) {
     if (envs == null) {
-      for (let i = 0; i < this.totalEnvs; i++) {
+      for (let i = 0; i < this.env.totalEnvs; i++) {
         if (this.envs[i].renderWin != null) {
           this.envs[i].renderWin = this.env.create_renderer()
         }
@@ -88,10 +126,12 @@ module.exports = class GameController {
 
   close() {
     // save reward model maybe
-    for (let i = 0; i < this.totalEnvs; i++) {
-      this.envs[i].envWin.close()
-      if (this.envs[i].renderWin != null) {
-        this.envs[i].renderWin.close()
+    for (let i = 0; i < this.env.totalEnvs; i++) {
+      if (this.envs[i].envWin != null) {
+        this.envs[i].envWin.close()
+        if (this.envs[i].renderWin != null) {
+          this.envs[i].renderWin.close()
+        }
       }
     }
   }

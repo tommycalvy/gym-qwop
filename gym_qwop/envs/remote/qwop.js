@@ -10,7 +10,7 @@ module.exports = class QWOP extends FlashGame {
     actionSpace = 4,
     width = 640,
     height = 400,
-    crops = [20, 20, 600, 360],
+    crops = {x: 20, y: 20, width: 600, height: 360},
     enableRender = true,
     flashGame = 'qwop.swf'
   } = {}) {
@@ -37,16 +37,19 @@ module.exports = class QWOP extends FlashGame {
     }
 
     let initFunc = function(webContents) {
-      setTimeout(() => {
-          webContents.sendInputEvent({type:'mouseDown', x: width / 2, y: height / 2, button:'left', clickCount: 1})
-      }, 300)
-      setTimeout(() => {
-          webContents.sendInputEvent({type:'mouseUp', x: width / 2, y: height / 2, button:'left', clickCount: 1})
-      }, 350)
-      setTimeout(() => {
-          webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' })
-          webContents.stopPainting()
-      }, 400)
+      return new Promise(function(resolve, reject) {
+        setTimeout(() => {
+            webContents.sendInputEvent({type:'mouseDown', x: width / 2, y: height / 2, button:'left', clickCount: 1})
+        }, 300)
+        setTimeout(() => {
+            webContents.sendInputEvent({type:'mouseUp', x: width / 2, y: height / 2, button:'left', clickCount: 1})
+        }, 350)
+        setTimeout(() => {
+            webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' })
+            webContents.stopPainting()
+            resolve()
+        }, 600)
+      })
     }
 
     let reward = new HPReward(ipcMain, totalEnvs)

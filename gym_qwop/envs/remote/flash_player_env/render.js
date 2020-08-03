@@ -5,7 +5,7 @@ const querystring = require('querystring');
 let query = querystring.parse(global.location.search);
 let data = JSON.parse(query['?data']);
 let renderer = document.getElementById('renderer');
-let html = '<img id="frame" src="" width="' + data.width '" height="' + data.height + '"/>';
+let html = '<img id="frame" src="" width="' + data.width + '" height="' + data.height + '"/>';
 renderer.insertAdjacentHTML('beforeend', html);
 
 
