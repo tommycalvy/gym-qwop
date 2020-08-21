@@ -1,4 +1,4 @@
-const { app, Brow } = require('electron')
+const { app, ipcMain, BrowserWindow } = require('electron')
 const path = require('path')
 const ipc = require('node-ipc')
 const QWOP = require('./remote/qwop.js')
@@ -6,8 +6,8 @@ const QWOP = require('./remote/qwop.js')
 app.commandLine.appendSwitch('ppapi-flash-path', app.getPath('pepperFlashSystemPlugin'))
 
 const cmdargs = process.argv.slice(2)
-let args = {
-  totalEnvs: parseInt(cmdargs[0], 10),
+global.args = {
+  totalAgents: parseInt(cmdargs[0], 10),
   framesInState: parseInt(cmdargs[1], 10),
   width: parseInt(cmdargs[2], 10),
   height: parseInt(cmdargs[3], 10),
@@ -17,22 +17,34 @@ let args = {
     width: parseInt(cmdargs[6], 10),
     height: parseInt(cmdargs[7], 10)
   },
-  enableRender: (cmdargs[8] == 'True')
+  enableRender: (cmdargs[8] == 'True'),
+  flashGame: cmdargs[9]
 }
-let qwop = new QWOP(args)
-app.whenReady().then(() => {
-  qwop.init_envs()
-})
+
+function createRemote() {
+  const remote = new BrowserWindow({
+    webPreferences: {
+      nodeIntegration: true,
+      plugins: true
+    },
+    show: true
+  })
+  remote.loadFile('./remote/remote.html')
+  return remote
+}
 
 
+app.whenReady().then(createRemote)
 
+/*
+//ipc.config.silent=true;
 let serverAddress = '/tmp/app.qwop'
 ipc.serve(serverAddress, function() {
     // The path is '/tmp/app.qwop'
     ipc.server.on('step', function(actions, socket) {
       ipc.log('step env: '.debug, actions);
-      qwop.step_all(actions).then(obs => {
-        ipc.server.emit(socket, 'step', JSON.stringify(obs));
+      qwop.step_all(JSON.parse(actions)).then(obs => {
+        ipc.server.emit(socket, 'step', obs);
       })
     });
 
@@ -40,7 +52,7 @@ ipc.serve(serverAddress, function() {
       ipc.log('got a message : '.debug, data);
       qwop.reset().then(obs => {
         console.log('Sending Observations after reset')
-        ipc.server.emit(socket, 'reset', JSON.stringify(obs));
+        ipc.server.emit(socket, 'reset', obs);
       })
     });
 
@@ -62,3 +74,5 @@ ipc.serve(serverAddress, function() {
 });
 
 ipc.server.start();
+
+*/

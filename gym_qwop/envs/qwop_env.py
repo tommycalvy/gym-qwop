@@ -10,9 +10,9 @@ class QwopEnv(gym.Env):
               crops=(20, 20, 600, 360), enable_render=True):
 
     self.observation_space = spaces.Box(
-        low=0,
+        low=-1,
         high=1,
-        shape=(frames, 81, 81),
+        shape=(81, 81, frames),
         dtype=np.float32
     )
     self.action_space = spaces.MultiDiscrete([2, 2, 2, 2])

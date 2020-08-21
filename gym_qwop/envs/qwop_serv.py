@@ -15,11 +15,12 @@ class QwopServ:
         cmd = (
             electron_path, mainjs_path, str(environments), str(frames),
             str(screen_size[0]), str(screen_size[1]), str(crops[0]),
-            str(crops[1]), str(crops[2]), str(crops[3]), str(enable_render)
+            str(crops[1]), str(crops[2]), str(crops[3]), str(enable_render),
+            'qwop.swf'
         )
         subprocess.Popen(cmd)
 
-        time.sleep(5)
+        time.sleep(8)
 
         print('Starting...')
         server_address = '/tmp/app.qwop'
@@ -27,7 +28,7 @@ class QwopServ:
         try:
             self.client = socket(AF_UNIX, SOCK_STREAM)
         except error as e:
-            print("Failed To Create A Scoket")
+            print("Failed To Create A Socket")
             print("Reason : ", str(e))
         print("Socket Created Successfully")
 
@@ -39,6 +40,17 @@ class QwopServ:
             print("Reason : ", str(e))
         # "{\"type\":\"message\",\"data\":\"hello response\"}\f"
         # self.client.send('hello')
+        status = self.initServ()
+        print(status)
+
+    def initServ(self):
+        print('!initServ')
+        data = {
+            "type": "init",
+            "data": "init"
+        }
+        self.client.sendall(self.format(data))
+        return self.recv()
 
     def step(self, actions):
         print('!step')
@@ -83,9 +95,21 @@ class QwopServ:
         fragments = []
         while True:
             chunk = self.client.recv(10000)
-            if not chunk:
-                break
             fragments.append(chunk)
+            if self.delCheck(chunk):
+                print('end of message')
+                break
         arr = b''.join(fragments)
+        arr = arr[:-1]
         data = json.loads(arr)
+        print('joined!!!')
+        print(data)
         return data
+
+    def delCheck(self, chunk):
+        piece = chunk[-1:]
+        print(piece)
+        if piece == self.delimiter.encode():
+            print('FOUND DEL')
+            return True
+        return False

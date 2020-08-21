@@ -1,32 +1,51 @@
-//const { app } = require('electron').remote
+const { remote, ipcRenderer } = require('electron')
 const ipc = require('node-ipc')
-
+const GameController = require('./game_controller.js')
+console.log('hello')
 //app.commandLine.appendSwitch('ppapi-flash-path', app.getPath('pepperFlashSystemPlugin'))
 
+let games = new GameController(remote, ipcRenderer)
 
-//let qwop = new QWOP()
-//app.whenReady().then(qwop.create_envs())
+ipcRenderer.on('update-model', () => {
+  games.update_model()
+})
 
 
+let serverAddress = '/tmp/app.qwop';
+ipc.serve(serverAddress, function() {
 
-
-
-ipc.config.id = 'qwop'
-ipc.serve(function() {
-    // The path is '/tmp/app.qwop'
-    ipc.server.on('step', function(data, socket) {
+    ipc.server.on('init', (data, socket) => {
       ipc.log('got a message : '.debug, data)
-      ipc.server.emit(socket, 'step', data+' world!')
+      games.init().then(statuses => {
+        console.log('init resolved')
+        console.log(statuses)
+        ipc.server.emit(socket, 'init', statuses);
+      })
     })
 
-    ipc.server.on('reset', function(data, socket) {
+    ipc.server.on('step', (actions, socket) => {
       ipc.log('got a message : '.debug, data)
-      ipc.server.emit(socket, 'step', data+' world!')
+      games.step(JSON.parse(actions)).then(obs => {
+        ipc.server.emit(socket, 'step', obs);
+      })
     })
 
-    ipc.server.on('render', function(data, socket) {
+    ipc.server.on('reset', (data, socket) => {
       ipc.log('got a message : '.debug, data)
-      ipc.server.emit(socket, 'step', data+' world!')
+      games.reset().then(obs => {
+        ipc.server.emit(socket, 'reset', obs);
+      })
+    })
+
+    ipc.server.on('render', (data, socket) => {
+      ipc.log('got a message : '.debug, data);
+      games.render();
+    });
+
+    ipc.server.on('close', (data, socket) => {
+      ipc.log('got a message : '.debug, data);
+      games.close();
+      remote.quit();
     });
 
     ipc.server.on('socket.disconnected', function(socket, destroyedSocketID) {
