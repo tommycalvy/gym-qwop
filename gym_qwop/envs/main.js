@@ -30,6 +30,7 @@ function createRemote() {
     show: true
   })
   remote.loadFile('./remote/remote.html')
+  remote.openDevTools()
   return remote
 }
 

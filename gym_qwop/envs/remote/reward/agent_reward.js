@@ -96,18 +96,22 @@ module.exports = class AgentReward {
   format_frame(frame) {
     return new Promise((resolve, reject) => {
       new Promise((resolve, reject) => {
-        resolve(tf.node.decodePng(frame, 3))
+        resolve(tf.node.decodePng(frame))
       }).then(tframe => {
-        console.log(tframe)
+        //console.log(tframe)
+        //console.log(tframe.dataSync())
         return tframe.mean(2, true)
       }).then(tframe => {
-        console.log(tframe)
+        //console.log(tframe)
+        //console.log(tframe.dataSync())
         return tf.image.resizeBilinear(tframe, [81, 81])
       }).then(tframe => {
-        console.log(tframe)
+        //console.log(tframe)
+        //console.log(tframe.dataSync())
         return tframe.div(255).mul(2).sub(1)
       }).then(tframe => {
-        console.log(tframe)
+        //console.log(tframe)
+        //console.log(tframe.dataSync())
         resolve(tframe)
       })
     })
@@ -115,7 +119,24 @@ module.exports = class AgentReward {
 
   stack_tensor(tensor) {
     return new Promise((resolve, reject) => {
-      resolve(tf.stack(tensor, 3).squeeze(2).dataSync())
+      let obs = {
+        sync: null,
+        tensor: null
+      }
+      new Promise((resolve, reject) => {
+        resolve(tf.stack(tensor, 3));
+      }).then(tframes => {
+        //console.log(tframes);
+        //console.log(tframes.dataSync());
+        return tframes.squeeze(2)
+      }).then(tframes => {
+        obs.tensor = tframes;
+        return tframes.dataSync();
+      }).then(tframes => {
+        obs.sync = tframes
+        //console.log(tframes);
+        resolve(obs);
+      })
     })
   }
 
@@ -138,15 +159,13 @@ module.exports = class AgentReward {
     })
   }
 
-  get_reward(obs) {
+  get_reward(obsSync, tensor, png) {
     let $this = this
     return new Promise((resolve, reject) => {
-      let tensor = obs.tensor.dataSync()
-      let png = obs.png
       new Promise((resolve, reject) => {
-        return $this.model.predict(obs.tensor).dataSync()
+        return $this.model.predict(tensor).dataSync()
       }).then(reward => {
-        $this.record_returns({reward: reward, tensor: tensor, png: png})
+        $this.record_returns({reward: reward, tensor: obsSync, png: png})
         resolve(reward)
       })
     })

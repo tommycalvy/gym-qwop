@@ -24,7 +24,7 @@ ipc.serve(serverAddress, function() {
     })
 
     ipc.server.on('step', (actions, socket) => {
-      ipc.log('got a message : '.debug, data)
+      ipc.log('got a message : '.debug, actions)
       games.step(JSON.parse(actions)).then(obs => {
         ipc.server.emit(socket, 'step', obs);
       })

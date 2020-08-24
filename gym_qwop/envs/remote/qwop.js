@@ -25,14 +25,15 @@ module.exports = class QWOP {
       return new Promise(function(resolve, reject) {
         setTimeout(() => {
             webContents.sendInputEvent({type:'mouseDown', x: width / 2, y: height / 2, button:'left', clickCount: 1})
-        }, 400)
+        }, 3000)
         setTimeout(() => {
             webContents.sendInputEvent({type:'mouseUp', x: width / 2, y: height / 2, button:'left', clickCount: 1})
-        }, 450)
+        }, 3500)
         setTimeout(() => {
             webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' })
+            console.log('environment initialized')
             resolve()
-        }, 500)
+        }, 4000)
       })
     }
 

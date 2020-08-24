@@ -7,7 +7,7 @@ from gym_qwop.envs.qwop_serv import QwopServ
 class QwopEnv(gym.Env):
 
   def __init__(self, environments=1, frames=4, screen_size=(640, 400),
-              crops=(20, 20, 600, 360), enable_render=True):
+              crops=(20, 20, 600, 360), enable_render=False):
 
     self.observation_space = spaces.Box(
         low=-1,

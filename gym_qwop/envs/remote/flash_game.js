@@ -2,7 +2,7 @@ const EventEmitter = require('events');
 
 module.exports = class FlashGame {
 
-  constructor(remote, ipcRenderer, qwop, reward) {
+  constructor(remote, ipcRenderer, qwop, reward, process) {
     //console.log(args);
     this.args = remote.getGlobal('args');
     this.totalAgents = this.args.totalAgents;
@@ -18,6 +18,7 @@ module.exports = class FlashGame {
     this.init_func = qwop.init_func;
     this.action_set = qwop.action_set;
     this.reward = reward;
+    this.process = process;
 
     this.data = {
       "width": this.width,
@@ -88,6 +89,8 @@ module.exports = class FlashGame {
     console.log('inside painting')
     this.webCon.on('paint', (event, dirty, frame) => {
       console.log('frame')
+      //console.log('count:' + this.count + ' - observing: ' + this.observing)
+      //this.process.getHeapStatistics()
       if (this.enableRender) {
         this.ipcRenderer.sendTo(this.renderer.webContents.id, 'frame', frame.toDataURL())
       }
@@ -96,11 +99,12 @@ module.exports = class FlashGame {
           resolve(frame.crop(this.crops).toPNG())
         }).then(png => {
           this.png.push(png)
+          //console.log(png)
           return this.reward.format_frame(png)
         }).then(tframe => {
           this.tensor.push(tframe)
         }).then(() => {
-          if (this.count == this.framesInState) {
+          if (this.count / this.frameSkip == this.framesInState) {
             this.emitter.emit('observed')
           }
         })
@@ -122,11 +126,12 @@ module.exports = class FlashGame {
             console.log('renderer created')
             this.renderer = renderer
             this.painting()
+            resolve('ready')
           })
         } else {
           this.painting()
+          resolve('ready')
         }
-        resolve('ready')
       })
     })
   }
@@ -163,7 +168,9 @@ module.exports = class FlashGame {
         $this.observing = true
         $this.emitter.on('observed', () => {
           $this.observing = false
-          resolve($this.reward.stack_frames($this.tensor.slice(0, $this.framesInState)))
+          $this.reward.stack_tensor($this.tensor.slice(0, $this.framesInState)).then(obs => {
+            resolve(obs.sync)
+          })
         })
       })
     })
@@ -174,18 +181,16 @@ module.exports = class FlashGame {
     return new Promise((resolve, reject) => {
       $this.png = []
       $this.tensor = []
-      let observation
+      let obsSync
       $this.send_action(action).then(() => {
         $this.count = 0
         $this.observing = true
         $this.emitter.on('observed', () => {
           $this.observing = false
-          let tensor = $this.tensor.slice(0, $this.framesInState)
-          $this.reward.stack_tensor(tensor).then(obs => {
-            observation = obs
-            return $this.reward.get_reward(obs)
+          $this.reward.stack_tensor($this.tensor.slice(0, $this.framesInState)).then(obs => {
+            return $this.reward.get_reward(obs.sync, obs.tensor, $this.png.slice(0, $this.framesInState))
           }).then(reward => {
-            resolve({observation: observation, reward: reward})
+            resolve({observation: obs.sync, reward: reward})
           })
         })
       })

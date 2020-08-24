@@ -29,7 +29,8 @@ module.exports = class GameController {
         webPreferences: {
           nodeIntegration: true,
           plugins: true,
-          offscreen: true
+          offscreen: true,
+
         },
         show: false
       });
@@ -40,6 +41,7 @@ module.exports = class GameController {
       });
       agent.once('ready-to-show', () => {
         agent.show()
+        agent.openDevTools()
         console.log('agent is ready-to-show')
         resolve(agent)
       });
@@ -107,8 +109,9 @@ module.exports = class GameController {
         }
       });
       reward.once('ready-to-show', () => {
-        reward.show()
-        resolve(reward)
+        reward.show();
+        reward.openDevTools();
+        resolve(reward);
       })
     })
   }
@@ -162,14 +165,14 @@ module.exports = class GameController {
     })
   }
 
-  step(agents=null) {
+  step(actions, agents=null) {
     let $this = this
     return new Promise((resolve, reject) => {
       let promises = []
       if (agents == null) {
         for (let i = 0; i < $this.totalAgents; i++) {
           let promise = new Promise((resolve, reject) => {
-            $this.agents[i].webContents.send('step')
+            $this.agents[i].webContents.send('step', actions[i])
             $this.ipcRenderer.once('obs' + i, (event, obs) => {
               resolve(obs)
             })
@@ -179,7 +182,7 @@ module.exports = class GameController {
       } else {
         for (let i = 0; i < agents.length; i++) {
           let promise = new Promise((resolve, reject) => {
-            $this.agents[agents[i]].webContents.send('step')
+            $this.agents[agents[i]].webContents.send('step', actions[i])
             $this.ipcRenderer.once('obs' + agents[i], (event, obs) => {
               resolve(obs)
             })
