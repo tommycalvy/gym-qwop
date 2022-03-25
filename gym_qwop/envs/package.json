@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/tommycalvy/gym-qwop#readme",
   "devDependencies": {
-    "electron": "^9.1.0"
+    "electron": "^13.6.6"
   },
   "dependencies": {
     "@tensorflow/tfjs-node": "^1.4.0",
