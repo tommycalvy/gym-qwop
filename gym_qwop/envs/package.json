@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@tensorflow/tfjs-node": "^1.4.0",
-    "dexie": "^3.0.1",
+    "dexie": "^3.2.2",
     "node-ipc": "^9.1.1"
   }
 }
